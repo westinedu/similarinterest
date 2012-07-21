@@ -11,7 +11,7 @@ def sql_create(app, style, connection):
 
     if connection.settings_dict['ENGINE'] == 'django.db.backends.dummy':
         # This must be the "dummy" database backend, which means the user
-        # hasn't set ENGINE for the databse.
+        # hasn't set ENGINE for the database.
         raise CommandError("Django doesn't know which syntax to use for your SQL statements,\n" +
             "because you haven't specified the ENGINE setting for the database.\n" +
             "Edit your settings file and change DATBASES['default']['ENGINE'] to something like\n" +
@@ -96,16 +96,6 @@ def sql_delete(app, style, connection):
 
     return output[::-1] # Reverse it, to deal with table dependencies.
 
-def sql_reset(app, style, connection):
-    "Returns a list of the DROP TABLE SQL, then the CREATE TABLE SQL, for the given module."
-    # This command breaks a lot and should be deprecated
-    import warnings
-    warnings.warn(
-        'This command has been deprecated. The command ``sqlflush`` can be used to delete everything. You can also use ALTER TABLE or DROP TABLE statements manually.',
-        PendingDeprecationWarning
-    )
-    return sql_delete(app, style, connection) + sql_all(app, style, connection)
-
 def sql_flush(style, connection, only_django=False):
     """
     Returns a list of the SQL statements used to flush the database.
@@ -127,7 +117,6 @@ def sql_custom(app, style, connection):
     output = []
 
     app_models = get_models(app)
-    app_dir = os.path.normpath(os.path.join(os.path.dirname(app.__file__), 'sql'))
 
     for model in app_models:
         output.extend(custom_sql_for_model(model, style, connection))

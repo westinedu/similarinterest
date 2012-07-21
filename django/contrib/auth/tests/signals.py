@@ -1,7 +1,9 @@
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.contrib.auth import signals
 
 
+@override_settings(USE_TZ=False)
 class SignalTestCase(TestCase):
     urls = 'django.contrib.auth.tests.urls'
     fixtures = ['authtestdata.json']

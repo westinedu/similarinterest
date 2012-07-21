@@ -11,24 +11,6 @@ from django.conf import settings
 from django.middleware.csrf import get_token
 from django.utils.functional import lazy
 
-def auth(request):
-    """
-    DEPRECATED. This context processor is the old location, and has been moved
-    to `django.contrib.auth.context_processors`.
-
-    This function still exists for backwards-compatibility; it will be removed
-    in Django 1.4.
-    """
-    import warnings
-    warnings.warn(
-        "The context processor at `django.core.context_processors.auth` is " \
-        "deprecated; use the path `django.contrib.auth.context_processors.auth` " \
-        "instead.",
-        DeprecationWarning
-    )
-    from django.contrib.auth.context_processors import auth as auth_context_processor
-    return auth_context_processor(request)
-
 def csrf(request):
     """
     Context processor that provides a CSRF token, or the string 'NOTPROVIDED' if
@@ -66,6 +48,11 @@ def i18n(request):
 
     return context_extras
 
+def tz(request):
+    from django.utils import timezone
+
+    return {'TIME_ZONE': timezone.get_current_timezone_name()}
+
 def static(request):
     """
     Adds static-related context variables to the context.
@@ -82,32 +69,3 @@ def media(request):
 
 def request(request):
     return {'request': request}
-
-# PermWrapper and PermLookupDict proxy the permissions system into objects that
-# the template system can understand. They once lived here -- they have
-# been moved to django.contrib.auth.context_processors.
-
-from django.contrib.auth.context_processors import PermLookupDict as RealPermLookupDict
-from django.contrib.auth.context_processors import PermWrapper as RealPermWrapper
-
-class PermLookupDict(RealPermLookupDict):
-    def __init__(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            "`django.core.context_processors.PermLookupDict` is " \
-            "deprecated; use `django.contrib.auth.context_processors.PermLookupDict` " \
-            "instead.",
-            PendingDeprecationWarning
-        )
-        super(PermLookupDict, self).__init__(*args, **kwargs)
-
-class PermWrapper(RealPermWrapper):
-    def __init__(self, *args, **kwargs):
-        import warnings
-        warnings.warn(
-            "`django.core.context_processors.PermWrapper` is " \
-            "deprecated; use `django.contrib.auth.context_processors.PermWrapper` " \
-            "instead.",
-            PendingDeprecationWarning
-        )
-        super(PermWrapper, self).__init__(*args, **kwargs)

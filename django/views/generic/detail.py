@@ -1,13 +1,11 @@
-import re
-
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.http import Http404
 from django.utils.encoding import smart_str
 from django.utils.translation import ugettext as _
-from django.views.generic.base import TemplateResponseMixin, View
+from django.views.generic.base import TemplateResponseMixin, ContextMixin, View
 
 
-class SingleObjectMixin(object):
+class SingleObjectMixin(ContextMixin):
     """
     Provides the ability to retrieve a single object for further manipulation.
     """
@@ -15,6 +13,8 @@ class SingleObjectMixin(object):
     queryset = None
     slug_field = 'slug'
     context_object_name = None
+    slug_url_kwarg = 'slug'
+    pk_url_kwarg = 'pk'
 
     def get_object(self, queryset=None):
         """
@@ -29,8 +29,8 @@ class SingleObjectMixin(object):
             queryset = self.get_queryset()
 
         # Next, try looking up by primary key.
-        pk = self.kwargs.get('pk', None)
-        slug = self.kwargs.get('slug', None)
+        pk = self.kwargs.get(self.pk_url_kwarg, None)
+        slug = self.kwargs.get(self.slug_url_kwarg, None)
         if pk is not None:
             queryset = queryset.filter(pk=pk)
 
@@ -86,15 +86,16 @@ class SingleObjectMixin(object):
             return None
 
     def get_context_data(self, **kwargs):
-        context = kwargs
+        context = {}
         context_object_name = self.get_context_object_name(self.object)
         if context_object_name:
             context[context_object_name] = self.object
-        return context
+        context.update(kwargs)
+        return super(SingleObjectMixin, self).get_context_data(**context)
 
 
 class BaseDetailView(SingleObjectMixin, View):
-    def get(self, request, **kwargs):
+    def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)

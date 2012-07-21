@@ -14,24 +14,14 @@ cache class.
 
 See docs/topics/cache.txt for information on the public API.
 """
+from urlparse import parse_qsl
+
 from django.conf import settings
 from django.core import signals
 from django.core.cache.backends.base import (
     InvalidCacheBackendError, CacheKeyWarning, BaseCache)
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import importlib
-
-try:
-    # The mod_python version is more efficient, so try importing it first.
-    from mod_python.util import parse_qsl
-except ImportError:
-    try:
-        # Python 2.6 and greater
-        from urlparse import parse_qsl
-    except ImportError:
-        # Python 2.5, 2.4.  Works on Python 2.6 but raises
-        # PendingDeprecationWarning
-        from cgi import parse_qsl
 
 __all__ = [
     'get_cache', 'cache', 'DEFAULT_CACHE_ALIAS'
@@ -80,7 +70,7 @@ if not settings.CACHES:
         import warnings
         warnings.warn(
             "settings.CACHE_* is deprecated; use settings.CACHES instead.",
-            PendingDeprecationWarning
+            DeprecationWarning
         )
     else:
         # The default cache setting is put here so that we
@@ -127,12 +117,12 @@ def parse_backend_conf(backend, **kwargs):
         location = args.pop('LOCATION', '')
         return backend, location, args
     else:
-        # Trying to import the given backend, in case it's a dotted path
-        mod_path, cls_name = backend.rsplit('.', 1)
         try:
+            # Trying to import the given backend, in case it's a dotted path
+            mod_path, cls_name = backend.rsplit('.', 1)
             mod = importlib.import_module(mod_path)
             backend_cls = getattr(mod, cls_name)
-        except (AttributeError, ImportError):
+        except (AttributeError, ImportError, ValueError):
             raise InvalidCacheBackendError("Could not find backend '%s'" % backend)
         location = kwargs.pop('LOCATION', '')
         return backend, location, kwargs
@@ -177,12 +167,13 @@ def get_cache(backend, **kwargs):
     except (AttributeError, ImportError), e:
         raise InvalidCacheBackendError(
             "Could not find backend '%s': %s" % (backend, e))
-    return backend_cls(location, params)
+    cache = backend_cls(location, params)
+    # Some caches -- python-memcached in particular -- need to do a cleanup at the
+    # end of a request cycle. If the cache provides a close() method, wire it up
+    # here.
+    if hasattr(cache, 'close'):
+        signals.request_finished.connect(cache.close)
+    return cache
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 
-# Some caches -- python-memcached in particular -- need to do a cleanup at the
-# end of a request cycle. If the cache provides a close() method, wire it up
-# here.
-if hasattr(cache, 'close'):
-    signals.request_finished.connect(cache.close)
