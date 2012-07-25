@@ -1,7 +1,26 @@
 # Initialize App Engine and import the default settings (DB backend, etc.).
 # If you want to use a different backend you have to remove all occurences
 # of "djangoappengine" from this file.
-from djangoappengine.settings_base import *
+try:
+    from djangoappengine.settings_base import *
+    has_djangoappengine = True
+except ImportError:
+    has_djangoappengine = False
+    DEBUG = True
+    TEMPLATE_DEBUG = DEBUG
+
+## Fall back to MongoDB if App Engine isn't used (note that other backends
+#    # including SQL should work, too)
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django_mongodb_engine',
+#        'NAME': 'test',
+#        'USER': '',
+#        'PASSWORD': '',
+#        'HOST': 'localhost',
+#        'PORT': 27017,
+#    }
+#}
 
 import os
 
@@ -10,13 +29,14 @@ import os
 USE_SOUTH = True
 
 # Activate django-dbindexer for the default database
-DATABASES['native'] = DATABASES['default']
-DATABASES['default'] = {'ENGINE': 'dbindexer', 'TARGET': 'native'}
+# Activate django-dbindexer if available
+DATABASES['default']['HIGH_REPLICATION'] = True
 AUTOLOAD_SITECONF = 'indexes'
 
 SECRET_KEY = "8cc1cc06-22fa-4a69-a9ea-e7ebee6d2567e7608c56-f019-4e9a-a440-a554197d5f2318c89510-cf34-42d5-9b24-6b7a117b22ee"
 
 INSTALLED_APPS = (
+    'djangoappengine',
     'django.contrib.auth',
     'django.contrib.admin',
     'django.contrib.contenttypes',
@@ -39,10 +59,7 @@ INSTALLED_APPS = (
     #"mezzanine.mobile",
     'djangotoolbox',
     'autoload',
-    'dbindexer',
-
     # djangoappengine should come last, so it can override a few manage.py commands
-    'djangoappengine',
     'bookmarks',
     'handlers'
 )
@@ -115,16 +132,52 @@ DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}
 # corresponding output. Helps a lot with print-debugging.
 TEST_RUNNER = 'djangotoolbox.test.CapturingTestSuiteRunner'
 
-ADMIN_MEDIA_PREFIX = '/media/admin/'
+#ADMIN_MEDIA_PREFIX = '/media/admin/'
 
-PROJECT_DIR = os.path.dirname(__file__) # this is not Django setting.
-TEMPLATE_DIRS = (
-    os.path.join(PROJECT_DIR, "templates"),
-    "static"# here you can add another templates directory if you wish.
-)
+#PROJECT_DIR = os.path.dirname(__file__) # this is not Django setting.
+#TEMPLATE_DIRS = (
+#    os.path.join(PROJECT_DIR, "templates"),
+#    "static"# here you can add another templates directory if you wish.
+#)
+#
+#ROOT_URLCONF = 'urls'
+# Full filesystem path to the project.
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-ROOT_URLCONF = 'urls'
+# Name of the directory for the project.
+PROJECT_DIRNAME = PROJECT_ROOT.split(os.sep)[-1]
 
+# Every cache key will get prefixed with this value - here we set it to
+# the name of the directory the project is in to try and use something
+# project specific.
+CACHE_MIDDLEWARE_KEY_PREFIX = PROJECT_DIRNAME
+
+# URL prefix for static files.
+# Example: "http://media.lawrence.com/static/"
+STATIC_URL = "/static/"
+
+# Absolute path to the directory static files should be collected to.
+# Don't put anything in this directory yourself; store your static files
+# in apps' "static/" subdirectories and in STATICFILES_DIRS.
+# Example: "/home/media/media.lawrence.com/static/"
+STATIC_ROOT = os.path.join(PROJECT_ROOT, STATIC_URL.strip("/"))
+
+# URL that handles the media served from MEDIA_ROOT. Make sure to use a
+# trailing slash.
+# Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
+MEDIA_URL = STATIC_URL + "media/"
+
+# Absolute filesystem path to the directory that will hold user-uploaded files.
+# Example: "/home/media/media.lawrence.com/media/"
+MEDIA_ROOT = os.path.join(PROJECT_ROOT, *MEDIA_URL.strip("/").split("/"))
+
+# URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
+# trailing slash.
+# Examples: "http://foo.com/media/", "/media/".
+ADMIN_MEDIA_PREFIX = STATIC_URL + "grappelli/"
+
+# Package/module name to import the root urlpatterns from for the project.
+ROOT_URLCONF = "%s.urls" % PROJECT_DIRNAME
 ###################
 # DEPLOY SETTINGS #
 ###################
@@ -171,4 +224,15 @@ except ImportError:
 # applicable.
 from mezzanine.utils.conf import set_dynamic_settings
 set_dynamic_settings(globals())
+
+# Activate django-dbindexer if available
+try:
+    import dbindexer
+    DATABASES['native'] = DATABASES['default']
+    DATABASES['default'] = {'ENGINE': 'dbindexer',
+                            'NAME': 'mezzaninedb', 
+                            'TARGET': 'native'}
+    INSTALLED_APPS += ('dbindexer',)
+except ImportError:
+    pass
 
